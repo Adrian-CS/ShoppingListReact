@@ -11,11 +11,7 @@ import {
   ImageBackground,
 } from "react-native";
 import { Icon } from "@rneui/themed";
-//import { Menu, TextInput as PaperInput, Button, PaperProvider } from "react-native-paper";
-//import { HelloWave } from '@/components/HelloWave';
-//import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from "@/components/ThemedText";
-//import { ThemedView } from '@/components/ThemedView';
 import {
   FlatList,
   GestureHandlerRootView,
@@ -59,36 +55,14 @@ export default function HomeScreen() {
   const [tasks, setTasks] = useState([]);
   const [isEditing, setIdEditing] = useState(null);
   const [activeList, setActiveList] = useState(null); // Lista activa
-  //const [lists, setLists] = useState([]); //Listas objeto bbdd
   const { lists, isLoading, loadLists, data } = useListContext(); 
-  //const [isLoading, setIsLoading] = useState(true);
   const [logs, setLogs] = useState([]);
-  //const [data, setData] = useState([]); //Listas para el dropdown
   
   //Data base stuff
-  //const db = SQLite.openDatabaseSync("tasks.db"); // Abre (o crea) la base de datos
   const db = SQLite.openDatabaseSync("kaimonolist.db"); // Abre (o crea) la base de datos
   useEffect(() => {
     loadLists();
-    //Alert.alert("Tasks list", `Current Tasks: ${lists.length}`);
-    Alert.alert("Tasks list", `Current Lists: ${data.length}`);
   }, []);
-  // Obtener listas
-/*   useEffect(() => {
-    db.execSync("create table if not exists lists (id integer primary key not null, name text);");
-    db.execSync("create table if not exists tasks (id integer primary key not null, text text, list_id integer, foreign key (list_id) references lists(id));");
-    const result = db.getAllSync("select * from lists");
-    setLists(result);
-    setIsLoading(false);
-    // Convertimos las listas a un formato adecuado como el de 'data'
-    const transformedData = result.map((list) => ({
-      key: list.id.toString(),
-      value: list.name,
-      disabled: false, // Aquí puedes poner la lógica para deshabilitar algunas listas
-    }));
-
-    setData(transformedData); 
-  }, []); */
   
   // Este useEffect se ejecuta cada vez que activeList cambie
   useEffect(() => {
