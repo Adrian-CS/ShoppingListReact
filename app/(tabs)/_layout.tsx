@@ -7,6 +7,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -27,6 +28,21 @@ export default function TabLayout() {
         }),
       }}>
       <Tabs.Screen
+        name="indexv1"
+        options={{
+          title: 'Simple list',
+          tabBarIcon: ({ color, focused }) => (
+            <AntDesign
+              name="shoppingcart"
+              size={24}
+              color={focused ? 'white' : 'grey'} // Cambiar el color a blanco si está enfocado
+            />
+          ),
+          tabBarActiveTintColor: 'white', // Color del icono cuando está activo
+          tabBarInactiveTintColor: 'grey', // Color del icono cuando no está activo
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
@@ -34,12 +50,27 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="ListManager"
+        options={{
+          title: 'Lists',
+          tabBarIcon: ({ color, focused }) => (
+            <AntDesign
+              name="edit"
+              size={24}
+              color={focused ? 'white' : 'grey'} // Cambiar el color a blanco si está enfocado
+            />
+          ),
+          tabBarActiveTintColor: 'white', // Color del icono cuando está activo
+          tabBarInactiveTintColor: 'grey', // Color del icono cuando no está activo
+        }}
+      />
+{/*       <Tabs.Screen
         name="explore"
         options={{
           title: 'Explore',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
         }}
-      />
+      /> */}
     </Tabs>
   );
 }
