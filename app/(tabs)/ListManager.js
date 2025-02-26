@@ -32,12 +32,12 @@ const ListManager = () => {
   // Función para eliminar una lista
   const handleDeleteList = (id) => {
     Alert.alert(
-      "Eliminar Lista",
-      "¿Estás seguro de que quieres eliminar esta lista?",
+      "リスト削除",
+      "リスト削除よろしいでしょうか",
       [
-        { text: "Cancelar" },
+        { text: "いいえ" },
         {
-          text: "Eliminar",
+          text: "はい",
           onPress: () => {
             deleteList(id);  // Eliminar la lista desde la base de datos
           },
@@ -63,12 +63,12 @@ const ListManager = () => {
     <View style={styles.container}>
       <TextInput
         style={styles.input}
-        placeholder="Nombre de la lista"
+        placeholder="リストの名"
         value={listName}
         onChangeText={setListName}
       />
       <TouchableOpacity style={styles.saveButton} onPress={handleSaveList}>
-        <Text style={styles.saveButtonText}>{isEditingList !== null ? "Editar Lista" : "Crear Lista"}</Text>
+        <Text style={styles.saveButtonText}>{isEditingList !== null ? "編集" : "作る"}</Text>
       </TouchableOpacity>
 
       <FlatList
