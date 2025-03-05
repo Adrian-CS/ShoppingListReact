@@ -1,6 +1,9 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+/* import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native'; */
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -11,9 +14,32 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+/*   const [initialRoute, setInitialRoute] = useState<string>('indexv1'); // Valor por defecto
 
+  useEffect(() => {
+    const loadLastTab = async () => {
+      const lastTab = await AsyncStorage.getItem('lastTab');
+      if (lastTab) {
+        setInitialRoute(lastTab);
+      }
+    };
+
+    loadLastTab();
+  }, []);
+
+  // Guardar la pestaña seleccionada cuando la pantalla recibe el enfoque
+  useFocusEffect(
+    React.useCallback(() => {
+      const saveCurrentTab = async () => {
+        const currentRoute =  useRoute().name; // Aquí puedes reemplazarlo por el nombre de la ruta actual
+        await AsyncStorage.setItem('lastTab', currentRoute);
+      };
+      saveCurrentTab();
+    }, [])
+  ); */
   return (
     <Tabs
+      //initialRouteName='indexv1'
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
@@ -25,7 +51,7 @@ export default function TabLayout() {
             position: 'absolute',
           },
           default: {},
-        }),
+        })
       }}>
       <Tabs.Screen
         name="indexv1"

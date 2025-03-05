@@ -16,6 +16,7 @@ export const ListProvider = ({ children }) => {
   const [lists, setLists] = useState([]);  // Listas de la base de datos
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState([]);
+  const [primaryList, setPrimaryList] = useState(null);  // Lista principal
   const [isEditingList, setIsEditingList] = useState(null);
   // Conexión con la base de datos SQLite
   const db = SQLite.openDatabaseSync("kaimonolist.db");
@@ -36,21 +37,39 @@ export const ListProvider = ({ children }) => {
   }; */
   // Cargar listas desde la base de datos con formato para el dropdown
   const loadLists = () => {
-    db.execSync("CREATE TABLE IF NOT EXISTS lists (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);");
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS lists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        is_primary BOOLEAN DEFAULT 0
+      );
+    `);    
     db.execSync("CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT, list_id INTEGER, FOREIGN KEY (list_id) REFERENCES lists(id));");
 
     const result = db.getAllSync("SELECT * FROM lists");
-    setLists(result); // Guardar las listas en el estado
+    //setLists(result); // Guardar las listas en el estado
+    // Asegúrate de convertir `is_primary` a un valor booleano
+    const transformedLists = result.map((list) => ({
+      ...list,
+      is_primary: list.is_primary === 1,  // Convertir `is_primary` a booleano
+    }));
 
+    // Establecer las listas en el estado
+    setLists(transformedLists);
+        // Establecer la lista principal
+        const primary = transformedLists.find(list => list.is_primary);
+        setPrimaryList(primary);
     // Convertir las listas al formato adecuado para el dropdown
     const transformedData = result.map((list) => ({
       key: list.id.toString(),
       value: list.name,
+      is_primary: list.is_primary === 1,
       disabled: false,  // Lógica para deshabilitar algunas listas si es necesario
     }));
 
-    setData(transformedData); // Guardar las listas transformadas en 'data'
+  setData(transformedData); // Guardar las listas transformadas en 'data'
   };
+  
   // Guardar una nueva lista o editar una lista existente
   const saveList = (listName, isEditingList, setIsEditingList) => {
     //Alert.Alert.alert("Log", isEditingList.toString()); 
@@ -84,8 +103,8 @@ export const ListProvider = ({ children }) => {
       loadLists,
       saveList,
       deleteList,
-      data
-      //loadListsDropdown
+      data,
+      primaryList,
     }}>
       {children}
     </ListContext.Provider>

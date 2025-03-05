@@ -55,7 +55,8 @@ export default function HomeScreen() {
   const [tasks, setTasks] = useState([]);
   const [isEditing, setIdEditing] = useState(null);
   const [activeList, setActiveList] = useState(null); // Lista activa
-  const { lists, isLoading, loadLists, data } = useListContext(); 
+  const [activeListUser, setActiveListUser] = useState(null); // Lista activa
+  const { lists, isLoading, loadLists, data, primaryList, LoadDataForSelectListWithoutPrimary } = useListContext(); 
   const [logs, setLogs] = useState([]);
   
   //Data base stuff
@@ -63,36 +64,62 @@ export default function HomeScreen() {
   useEffect(() => {
     loadLists();
   }, []);
-  
+
+  // Si `primaryList` cambia, establecerla como la lista activa
+  useEffect(() => {
+    //showLog(`La id es: ${primaryList}`)
+    if (primaryList) {
+      setActiveList(primaryList.id);  // Establecer la lista principal como la activa
+    }
+  }, [primaryList]);
   // Este useEffect se ejecuta cada vez que activeList cambie
   useEffect(() => {
-    if (activeList !== null) {
+    if (activeListUser !== null) {
       // Si hay una lista seleccionada, cargar las tareas correspondientes a esa lista
-      const result = db.getAllSync("select * from tasks where list_id = ?", [activeList]);
+      const result = db.getAllSync("select * from tasks where list_id = ?", [activeListUser]);
       setTasks(result); // Actualizar las tareas con las de la lista seleccionada
+      //showLog(`${activeListUser}`)
     }
-  }, [activeList]);
+  }, [activeListUser]);
 
   function handleDeleteTask(id) {
-    // Verificamos si la tarea pertenece a la lista activa
-    const task = tasks.find((task) => task.id === id);
-    //showLog(task.list_id.toString())
-    if (task && task.list_id.toString() === activeList) {
-      // Si la tarea pertenece a la lista activa, la eliminamos
-      const result = db.runSync("delete from tasks where id = ? and list_id = ?;", [id, activeList]);
-  
-      if (result.changes > 0) {
-        // Si la eliminación fue exitosa, actualizamos el estado de las tareas
-        setTasks(tasks.filter((task) => task.id !== id));
-      } else {
-        showLog("Error deleting task");
-      }
-    } else {
-      // Si la tarea no pertenece a la lista activa, mostramos un mensaje
-      showLog("Task does not belong to the selected list.");
+    if (!activeList && !activeListUser) {
+      showLog("Select a list");
+      return;
     }
-  }
-  
+    Alert.alert(
+          "削除",
+          "削除よろしいでしょうか",
+          [
+            { text: "いいえ" },
+            {
+              text: "はい",
+              onPress: () => {
+                const actualList = activeListUser != undefined ? activeListUser : activeList;
+                const sActualListId = actualList.toString();
+                //showLog(`${sActualListId}`)
+                // Verificamos si la tarea pertenece a la lista activa
+                const task = tasks.find((task) => task.id === id);
+                //showLog(task.list_id.toString())
+                if (task && task.list_id.toString() === sActualListId) {
+                  // Si la tarea pertenece a la lista activa, la eliminamos
+                  const result = db.runSync("delete from tasks where id = ? and list_id = ?;", [id, sActualListId]);
+              
+                  if (result.changes > 0) {
+                    // Si la eliminación fue exitosa, actualizamos el estado de las tareas
+                    setTasks(tasks.filter((task) => task.id !== id));
+                  } else {
+                    showLog("Error deleting task");
+                  }
+                } else {
+                  // Si la tarea no pertenece a la lista activa, mostramos un mensaje
+                  showLog("Task does not belong to the selected list.");
+                }
+              },
+            },
+          ]
+    );  
+  } 
 
   function handleEditTask(item) {
     setTaskText(item.text);
@@ -102,10 +129,11 @@ export default function HomeScreen() {
 
   function handleSaveTask() {
     if (!taskText.trim()) return;
-    if (!activeList) {
+    if (!activeList && !activeListUser) {
       showLog("Select a list");
       return;
     }
+    const actualList = activeListUser != undefined ? activeListUser : activeList;
     const taskId = Number(isEditing); // Asegurarnos de que isEditing es un número
     if (isNaN(taskId)) {
       showLog("Invalid task ID");
@@ -117,7 +145,7 @@ export default function HomeScreen() {
       const result = db.runSync("update tasks set text = ? where id = ? and list_id = ?", [
         taskText,
         taskId.toString(),
-        activeList, // Asociamos la tarea con la lista activa
+        actualList, // Asociamos la tarea con la lista activa
       ]);
   
       if (result.changes > 0) {
@@ -137,7 +165,7 @@ export default function HomeScreen() {
       // Agregar nueva tarea a la lista activa
       const result = db.runSync("insert into tasks (text, list_id) values (?, ?);", [
         taskText,
-        activeList, // Asociamos la tarea con la lista activa
+        actualList, // Asociamos la tarea con la lista activa
       ]);
       const newTask = { id: result.lastInsertRowId.toString(), text: taskText };
       setTasks([...tasks, newTask]);
@@ -146,7 +174,6 @@ export default function HomeScreen() {
     setTaskText(""); // Limpiar el campo de entrada de texto
   }
   
-
   const renderTask = ({ item }) => {
     return (
       <TaskItem
@@ -167,12 +194,13 @@ export default function HomeScreen() {
       <View style={styles.overlay}>
         <ThemedText style={styles.titlegeneral}>買い物リスト</ThemedText>
           <SelectList 
-              setSelected={(val) => setActiveList(val)} 
+              setSelected={(val) => setActiveListUser(val)} 
               data={data} 
               save="key"
               boxStyles={styles.menuContainer}
               dropdownItemStyles={styles.menuItem}
               dropdownStyles={styles.menuContainer}
+              defaultOption={{ key: activeList, value: lists.find(list => list.id === activeList)?.name }}  // Establece la opción por defecto
           />
           <TextInput
             ref={inputRef}
