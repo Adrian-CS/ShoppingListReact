@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 import { Icon } from '@rneui/themed';
 import { useEffect, useRef, useState } from 'react';
 
-const TaskItem = React.memo(({item, handleEdit, handleDelete}) => {
+const TaskItem = React.memo(({item, handleEdit, handleDelete, handleDoneTask}) => {
       const language = 1;
       const JapaneseText = new Map();
       JapaneseText.set('Edit', '編集');
@@ -15,10 +15,9 @@ const TaskItem = React.memo(({item, handleEdit, handleDelete}) => {
         EditText = JapaneseText.get('Edit');
         DeleteText = JapaneseText.get('Delete');
       }
-
     return (
      <View style={styles.task}>
-      <Text style={styles.taskText}>{item.text}</Text>
+      <Text style={[styles.taskText, item.isCrossed && styles.taskTextCrossed]}  onPress={() => handleDoneTask(item.id, item.isCrossed)}>{item.text}</Text>
       <View style={styles.buttonContainer}>
         <TouchableOpacity onPress={() => handleEdit(item)}><Icon name="edit" color="#4caf50" size={24} style={styles.iconMargin}></Icon></TouchableOpacity>
         <TouchableOpacity onPress={() => handleDelete(item.id)}><Icon name="delete" color="red" size={24} style={styles.iconMargin}></Icon></TouchableOpacity>
@@ -49,6 +48,10 @@ const styles = StyleSheet.create({
     textShadowColor: 'black',
     textShadowOffset: {width: 1, height: 1},
     textShadowRadius: 3,
+  },
+  taskTextCrossed: {
+    color: 'green',
+    textDecorationLine: 'line-through',
   },
   buttonContainer: {
     flexDirection: "row",

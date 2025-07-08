@@ -20,6 +20,14 @@ const ListManager = () => {
   const [logs, setLogs] = useState([]);
   // Cargar las listas desde la base de datos cuando el componente se monta
   useEffect(() => {
+/*         // Verificar si la columna 'is_primary' existe en la tabla 'lists'
+        const columnCheck = db.prepare("PRAGMA table_info(lists)").all();
+        const columnExists = columnCheck.some(column => column.name === 'is_primary');
+        
+        // Si la columna no existe, agregarla
+        if (!columnExists) {
+          db.execSync("ALTER TABLE lists ADD COLUMN is_primary BOOLEAN DEFAULT 0");
+        } */
     //db.execSync("ALTER TABLE lists ADD is_primary BOOLEAN DEFAULT FALSE")
     db.execSync("CREATE TABLE IF NOT EXISTS lists (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, is_primary BOOLEAN DEFAULT 0)");
     loadLists();  // Cargar las listas

@@ -64,6 +64,13 @@ export default function HomeScreen1() {
     db.execSync(
       "create table if not exists tasks (id integer primary key not null, text text);"
     );
+    const res = db.getAllSync(`PRAGMA table_info(tasks);`);
+    const columnExists = res.some(col => col.name === 'isCrossed');
+
+    // Agregar la columna si no existe
+    if (!columnExists) {
+      db.execSync("ALTER TABLE tasks ADD COLUMN isCrossed BOOLEAN DEFAULT false;");
+    }
     const result = db.getAllSync("select * from tasks");
     setTasks(result);
     setIsLoading(false);
@@ -74,6 +81,24 @@ export default function HomeScreen1() {
     //setTasks(tasks.filter((task) => task.id !== id));
     const result = db.runSync("delete from tasks where id = ?;", [id]);
     setTasks(tasks.filter((task) => task.id !== id));
+  }
+  function handleDoneTask(id, isCrossed) {
+      const crossed = !isCrossed;
+      const result = db.runSync("update tasks set isCrossed = ? where id = ?", [
+        crossed,
+        id,
+      ]);
+
+      if (result.changes > 0) {
+        // Actualizar el estado de las tareas en la UI
+        setTasks((prevTasks) =>
+          prevTasks.map((task) =>
+            task.id === id ? { ...task, isCrossed: crossed } : task
+          )
+        );
+      } else {
+        showLog("Error crossing task");
+      }
   }
   function handleEditTask(item) {
     setTaskText(item.text);
@@ -138,6 +163,7 @@ export default function HomeScreen1() {
         item={item}
         handleEdit={handleEditTask}
         handleDelete={handleDeleteTask}
+        handleDoneTask={handleDoneTask}
       />
     );
   };
