@@ -76,12 +76,21 @@ export default function HomeScreen1() {
     setIsLoading(false);
     //showTasksInAlert();
   }, []);
-
+  function handleCrossUncrossAll(cross) {
+      const result = db.runSync("update tasks set isCrossed = ? ", [
+        cross,
+      ]);
+      if (result.changes > 0) {
+        const updatedTasks = db.getAllSync("select * from tasks");
+        setTasks(updatedTasks);
+      }
+  }
   function handleDeleteTask(id) {
     //setTasks(tasks.filter((task) => task.id !== id));
     const result = db.runSync("delete from tasks where id = ?;", [id]);
     setTasks(tasks.filter((task) => task.id !== id));
   }
+
   function handleDoneTask(id, isCrossed) {
       const crossed = !isCrossed;
       const result = db.runSync("update tasks set isCrossed = ? where id = ?", [
@@ -100,6 +109,7 @@ export default function HomeScreen1() {
         showLog("Error crossing task");
       }
   }
+
   function handleEditTask(item) {
     setTaskText(item.text);
     setIdEditing(item.id);
@@ -190,6 +200,21 @@ export default function HomeScreen1() {
               <Icon name="done" color="red"></Icon>
             </TouchableOpacity>
           </View>
+          <View style={styles.crossButtonRow}>
+            <TouchableOpacity
+              style={[styles.crossButton, { backgroundColor: "#e67e22" }]}
+              onPress={() => handleCrossUncrossAll(true)}
+            >
+              <Text style={styles.addText}>全部買った</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.crossButton, { backgroundColor: "#27ae60" }]}
+              onPress={() => handleCrossUncrossAll(false)}
+            >
+              <Text style={styles.addText}>まだまだ</Text>
+            </TouchableOpacity>
+          </View>
           <FlatList
             data={tasks}
             renderItem={renderTask}
@@ -216,6 +241,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 20,
   },
+  crossButtonRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 10,
+  },
+
+  crossButton: {
+    flex: 1,
+    marginHorizontal: 5,
+    paddingVertical: 10,
+    borderRadius: 20,
+    alignItems: "center",
+  },
+
   addText: {
     color: "white",
     marginLeft: 10,
