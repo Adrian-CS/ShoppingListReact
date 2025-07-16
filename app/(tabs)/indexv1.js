@@ -43,6 +43,7 @@ export default function HomeScreen1() {
   const [taskText, setTaskText] = useState("");
   const [tasks, setTasks] = useState([]);
   const [isEditing, setIdEditing] = useState(null);
+  const [byCross, setByCross] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [logs, setLogs] = useState([]);
 
@@ -90,7 +91,18 @@ export default function HomeScreen1() {
     const result = db.runSync("delete from tasks where id = ?;", [id]);
     setTasks(tasks.filter((task) => task.id !== id));
   }
+  function handleChangeOrder() {
+    if(byCross) {
+      const updatedTasks = db.getAllSync("select * from tasks order by id desc");
+      setTasks(updatedTasks);
+      setByCross(false);
+    } else {
+      const updatedTasks = db.getAllSync("select * from tasks order by isCrossed asc");
+      setTasks(updatedTasks);
+      setByCross(true);
+    }
 
+  }
   function handleDoneTask(id, isCrossed) {
       const crossed = !isCrossed;
       const result = db.runSync("update tasks set isCrossed = ? where id = ?", [
@@ -205,14 +217,20 @@ export default function HomeScreen1() {
               style={[styles.crossButton, { backgroundColor: "#e67e22" }]}
               onPress={() => handleCrossUncrossAll(true)}
             >
-              <Text style={styles.addText}>全部買った</Text>
+              <Text style={styles.buttonsText}>全部買った</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.crossButton, { backgroundColor: "#27ae60" }]}
               onPress={() => handleCrossUncrossAll(false)}
             >
-              <Text style={styles.addText}>まだまだ</Text>
+              <Text style={styles.buttonsText}>まだまだ</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.crossButton, { backgroundColor: "#3498db" }]}
+              onPress={handleChangeOrder}
+            >
+              <Text style={styles.buttonsText}>整理</Text>
             </TouchableOpacity>
           </View>
           <FlatList
@@ -258,6 +276,9 @@ const styles = StyleSheet.create({
   addText: {
     color: "white",
     marginLeft: 10,
+  },
+  buttonsText: {
+    color: "white",
   },
   titlegeneral: {
     color: "white",
