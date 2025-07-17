@@ -11,6 +11,10 @@ import {
   ImageBackground,
 } from "react-native";
 import { Icon } from "@rneui/themed";
+import DraggableFlatList, {
+  ScaleDecorator,
+  OpacityDecorator,
+} from 'react-native-draggable-flatlist';
 
 //import { HelloWave } from '@/components/HelloWave';
 //import ParallaxScrollView from '@/components/ParallaxScrollView';
@@ -72,7 +76,17 @@ export default function HomeScreen1() {
     if (!columnExists) {
       db.execSync("ALTER TABLE tasks ADD COLUMN isCrossed BOOLEAN DEFAULT false;");
     }
-    const result = db.getAllSync("select * from tasks");
+    const sortOrderExists = res.some(col => col.name === 'sortOrder');
+    
+    if (!sortOrderExists) {
+      db.execSync("ALTER TABLE tasks ADD COLUMN sortOrder INTEGER DEFAULT 0;");
+      // Asignar orden inicial a tareas existentes
+      const existingTasks = db.getAllSync("select * from tasks");
+      existingTasks.forEach((task, index) => {
+        db.runSync("UPDATE tasks SET sortOrder = ? WHERE id = ?", [index, task.id]);
+      });
+    }
+    const result = db.getAllSync("select * from tasks order by sortOrder asc");
     setTasks(result);
     setIsLoading(false);
     //showTasksInAlert();
@@ -82,22 +96,37 @@ export default function HomeScreen1() {
         cross,
       ]);
       if (result.changes > 0) {
-        const updatedTasks = db.getAllSync("select * from tasks");
+        const updatedTasks = db.getAllSync("select * from tasks order by sortOrder asc");
         setTasks(updatedTasks);
       }
   }
   function handleDeleteTask(id) {
-    //setTasks(tasks.filter((task) => task.id !== id));
     const result = db.runSync("delete from tasks where id = ?;", [id]);
-    setTasks(tasks.filter((task) => task.id !== id));
+    
+    if (result.changes > 0) {
+      if(byCross) {
+        const result = db.getAllSync("select * from tasks order by sortOrder asc");
+        result.forEach((task, index) => {
+          db.runSync("UPDATE tasks SET sortOrder = ? WHERE id = ?", [index, task.id]);
+        });
+        const reorder = db.getAllSync("select * from tasks order by isCrossed asc , sortOrder asc");
+        setTasks(reorder);
+      } else {
+        const updatedTasks = tasks.filter((task) => task.id !== id);
+        updatedTasks.forEach((task, index) => {
+          db.runSync("UPDATE tasks SET sortOrder = ? WHERE id = ?", [index, task.id]);
+        });
+        setTasks(updatedTasks);
+      }
+    }
   }
   function handleChangeOrder() {
     if(byCross) {
-      const updatedTasks = db.getAllSync("select * from tasks order by id desc");
+      const updatedTasks = db.getAllSync("select * from tasks order by sortOrder asc");
       setTasks(updatedTasks);
       setByCross(false);
     } else {
-      const updatedTasks = db.getAllSync("select * from tasks order by isCrossed asc");
+      const updatedTasks = db.getAllSync("select * from tasks order by isCrossed asc , sortOrder asc");
       setTasks(updatedTasks);
       setByCross(true);
     }
@@ -165,30 +194,58 @@ export default function HomeScreen1() {
 
       Keyboard.dismiss();
     } else {
+      // Calcular el próximo sortOrder (mayor que todos los existentes)
+      const maxOrder = tasks.length > 0 
+        ? Math.max(...tasks.map(t => t.sortOrder || 0)) 
+        : 0;
+      
+      const nextOrder = maxOrder + 1;
       /*       const newTask = {id: Date.now().toString(), text: taskText};
       console.log(newTask);
       setTasks([...tasks, newTask]); */
-      const result = db.runSync("insert into tasks (text) values (?);", [
-        taskText,
-      ]);
-      const newTask = { id: result.lastInsertRowId.toString(), text: taskText };
+      const result = db.runSync(
+        "insert into tasks (text, isCrossed, sortOrder) values (?, ?, ?);", 
+        [taskText, false, nextOrder]
+      );
+      // Crear objeto de tarea completo
+      const newTask = { 
+        id: result.lastInsertRowId, 
+        text: taskText,
+        isCrossed: false,
+        sortOrder: nextOrder
+      };
       setTasks([...tasks, newTask]);
       //showLog(`Task added: ${taskText}`);
       Keyboard.dismiss();
     }
     setTaskText("");
   }
-
-  const renderTask = ({ item }) => {
-    return (
-      <TaskItem
-        item={item}
-        handleEdit={handleEditTask}
-        handleDelete={handleDeleteTask}
-        handleDoneTask={handleDoneTask}
-      />
-    );
+ // Nueva función para manejar el reordenamiento
+  const handleDragEnd = ({ data }) => {
+    // Actualizar el estado local
+    setTasks(data);
+    
+    // Actualizar la base de datos con el nuevo orden
+    data.forEach((task, index) => {
+      db.runSync("UPDATE tasks SET sortOrder = ? WHERE id = ?", [index, task.id]);
+    });
   };
+const renderTask = ({ item, drag, isActive }) => {
+  return (
+    <ScaleDecorator>
+      <OpacityDecorator>
+        <TaskItem
+          item={item}
+          handleEdit={handleEditTask}
+          handleDelete={handleDeleteTask}
+          handleDoneTask={handleDoneTask}
+          drag={drag}           // Pasar la función drag
+          isActive={isActive}   // Pasar el estado isActive
+        />
+      </OpacityDecorator>
+    </ScaleDecorator>
+  );
+};
   return (
     <GestureHandlerRootView style={styles.container}>
       <ImageBackground
@@ -217,27 +274,28 @@ export default function HomeScreen1() {
               style={[styles.crossButton, { backgroundColor: "#e67e22" }]}
               onPress={() => handleCrossUncrossAll(true)}
             >
-              <Text style={styles.buttonsText}>全部買った</Text>
+              <Text style={styles.buttonsText}>✓ 全部済み</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.crossButton, { backgroundColor: "#27ae60" }]}
               onPress={() => handleCrossUncrossAll(false)}
             >
-              <Text style={styles.buttonsText}>まだまだ</Text>
+              <Text style={styles.buttonsText}>○ リセット</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.crossButton, { backgroundColor: "#3498db" }]}
               onPress={handleChangeOrder}
             >
-              <Text style={styles.buttonsText}>整理</Text>
+              <Text style={styles.buttonsText}>↕ 並び替え</Text>
             </TouchableOpacity>
           </View>
-          <FlatList
+          <DraggableFlatList
             data={tasks}
-            renderItem={renderTask}
+            onDragEnd={handleDragEnd}
             keyExtractor={(item) => item.id.toString()}
-            style={styles.flatList}
+            renderItem={renderTask}
+            containerStyle={styles.listContainer}
           />
         </View>
       </ImageBackground>
@@ -330,5 +388,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: "center",
+  },
+    listContainer: {
+    flex: 1,
+    marginTop: 10,
   },
 });

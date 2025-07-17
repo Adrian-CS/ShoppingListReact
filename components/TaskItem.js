@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 import { Icon } from '@rneui/themed';
 import { useEffect, useRef, useState } from 'react';
 
-const TaskItem = React.memo(({item, handleEdit, handleDelete, handleDoneTask}) => {
+const TaskItem = React.memo(({ item, handleEdit, handleDelete, handleDoneTask, drag, isActive }) => {
       const language = 1;
       const JapaneseText = new Map();
       JapaneseText.set('Edit', '編集');
@@ -15,15 +15,35 @@ const TaskItem = React.memo(({item, handleEdit, handleDelete, handleDoneTask}) =
         EditText = JapaneseText.get('Edit');
         DeleteText = JapaneseText.get('Delete');
       }
-    return (
-     <View style={styles.task}>
-      <Text style={[styles.taskText, item.isCrossed && styles.taskTextCrossed]}  onPress={() => handleDoneTask(item.id, item.isCrossed)}>{item.text}</Text>
+      return (
+<TouchableOpacity 
+      style={[
+        styles.task,
+        isActive && styles.taskActive // Estilo cuando se está arrastrando
+      ]}
+      onLongPress={drag}  // Mantener pulsado el item completo para arrastrar
+      delayLongPress={120}  // Opcional: ajustar tiempo de respuesta
+      activeOpacity={0.8}
+      onPress={() => handleDoneTask(item.id, item.isCrossed)}
+    >
+      <Text 
+        style={[styles.taskText, item.isCrossed && styles.taskTextCrossed]}  
+        
+      >
+        {item.text}
+      </Text>
+      
       <View style={styles.buttonContainer}>
-        <TouchableOpacity onPress={() => handleEdit(item)}><Icon name="edit" color="#4caf50" size={24} style={styles.iconMargin}></Icon></TouchableOpacity>
-        <TouchableOpacity onPress={() => handleDelete(item.id)}><Icon name="delete" color="red" size={24} style={styles.iconMargin}></Icon></TouchableOpacity>
+        <TouchableOpacity onPress={() => handleEdit(item)}>
+          <Icon name="edit" color="#4caf50" size={24} style={styles.iconMargin} />
+        </TouchableOpacity>
+        
+        <TouchableOpacity onPress={() => handleDelete(item.id)}>
+          <Icon name="delete" color="red" size={24} style={styles.iconMargin} />
+        </TouchableOpacity>
       </View>
-    </View>
-   )
+    </TouchableOpacity>
+  );
 });
 
 const styles = StyleSheet.create({
@@ -59,6 +79,20 @@ const styles = StyleSheet.create({
   },
   iconMargin: {
     marginRight: 15,
-  }
+  },
+  taskActive: {
+    opacity: 0.8,
+    transform: [{ scale: 1.02 }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    backgroundColor: '#f0f0f0', // Cambiar color de fondo al arrastrar
+  },
+  
+  listContainer: {
+    flex: 1,
+  },
 });
 export default TaskItem;

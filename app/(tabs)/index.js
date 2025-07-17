@@ -173,13 +173,31 @@ export default function HomeScreen() {
     }
     setTaskText(""); // Limpiar el campo de entrada de texto
   }
-  
+    function handleDoneTask(id, isCrossed) {
+/*       const crossed = !isCrossed;
+      const result = db.runSync("update tasks set isCrossed = ? where id = ?", [
+        crossed,
+        id,
+      ]);
+
+      if (result.changes > 0) {
+        // Actualizar el estado de las tareas en la UI
+        setTasks((prevTasks) =>
+          prevTasks.map((task) =>
+            task.id === id ? { ...task, isCrossed: crossed } : task
+          )
+        );
+      } else {
+        showLog("Error crossing task");
+      } */
+  }
   const renderTask = ({ item }) => {
     return (
       <TaskItem
         item={item}
         handleEdit={handleEditTask}
         handleDelete={handleDeleteTask}
+        handleDoneTask={handleDoneTask}
       />
     );
   };
