@@ -18,6 +18,10 @@ import {
   ScrollView,
   TextInput,
 } from "react-native-gesture-handler";
+import DraggableFlatList, {
+  ScaleDecorator,
+  OpacityDecorator,
+} from 'react-native-draggable-flatlist';
 import { useEffect, useRef, useState } from "react";
 import TaskItem from "../../components/TaskItem";
 import * as SQLite from "expo-sqlite";
@@ -76,50 +80,95 @@ export default function HomeScreen() {
   useEffect(() => {
     if (activeListUser !== null) {
       // Si hay una lista seleccionada, cargar las tareas correspondientes a esa lista
-      const result = db.getAllSync("select * from tasks where list_id = ?", [activeListUser]);
+      const result = db.getAllSync("select * from tasks where list_id = ? order by sortOrder asc", [activeListUser]);
       setTasks(result); // Actualizar las tareas con las de la lista seleccionada
       //showLog(`${activeListUser}`)
     }
   }, [activeListUser]);
-
+    // Nueva función para manejar el reordenamiento
+  const handleDragEnd = ({ data }) => {
+    // Verificar que hay una lista activa
+    if (!activeList && !activeListUser) {
+      showLog("No active list selected");
+      return;
+    }
+    
+    // Obtener la lista actual
+    const currentListId = activeListUser !== null ? activeListUser : activeList;
+    
+    // Convertir a string para comparación consistente
+    const currentListIdStr = currentListId.toString();
+    
+    // Verificar que todas las tareas pertenecen a la lista actual
+    const allTasksBelongToCurrentList = data.every(task => task.list_id.toString() === currentListIdStr);
+    
+    if (!allTasksBelongToCurrentList) {
+      showLog("Error: Tasks from different lists detected");
+      // Debug: mostrar los IDs para verificar
+      console.log("Current list ID:", currentListIdStr);
+      console.log("Task list IDs:", data.map(task => task.list_id.toString()));
+      return;
+    }
+    
+    // Actualizar el estado local
+    setTasks(data);
+    
+    // Actualizar la base de datos con el nuevo orden
+    data.forEach((task, index) => {
+      db.runSync("UPDATE tasks SET sortOrder = ? WHERE id = ? AND list_id = ?", [
+        index, 
+        task.id, 
+        currentListId // Mantener el tipo original para la query
+      ]);
+    });
+  };
   function handleDeleteTask(id) {
+    // Verificar que hay una lista activa
     if (!activeList && !activeListUser) {
       showLog("Select a list");
       return;
     }
+    
+    // Obtener la lista actual
+    const currentListId = activeListUser !== undefined ? activeListUser : activeList;
+    
     Alert.alert(
-          "削除",
-          "削除よろしいでしょうか",
-          [
-            { text: "いいえ" },
-            {
-              text: "はい",
-              onPress: () => {
-                const actualList = activeListUser != undefined ? activeListUser : activeList;
-                const sActualListId = actualList.toString();
-                //showLog(`${sActualListId}`)
-                // Verificamos si la tarea pertenece a la lista activa
-                const task = tasks.find((task) => task.id === id);
-                //showLog(task.list_id.toString())
-                if (task && task.list_id.toString() === sActualListId) {
-                  // Si la tarea pertenece a la lista activa, la eliminamos
-                  const result = db.runSync("delete from tasks where id = ? and list_id = ?;", [id, sActualListId]);
+      "削除",
+      "削除よろしいでしょうか",
+      [
+        { text: "いいえ" },
+        {
+          text: "はい",
+          onPress: () => {
+            // Verificar que la tarea pertenece a la lista activa
+            const task = tasks.find((task) => task.id === id);
+            if (!task || task.list_id.toString() !== currentListId.toString()) {
+              showLog("Task does not belong to the selected list.");
+              return;
+            }
+            
+            // Eliminar la tarea de la base de datos
+            const result = db.runSync("delete from tasks where id = ? and list_id = ?;", [id, currentListId]);
+            
+            if (result.changes > 0) {
+              // Filtrar las tareas eliminadas del estado local
+              const updatedTasks = tasks.filter((task) => task.id !== id);
               
-                  if (result.changes > 0) {
-                    // Si la eliminación fue exitosa, actualizamos el estado de las tareas
-                    setTasks(tasks.filter((task) => task.id !== id));
-                  } else {
-                    showLog("Error deleting task");
-                  }
-                } else {
-                  // Si la tarea no pertenece a la lista activa, mostramos un mensaje
-                  showLog("Task does not belong to the selected list.");
-                }
-              },
-            },
-          ]
-    );  
-  } 
+              // Reordenar los sortOrder para que sean consecutivos (solo para la lista actual)
+              updatedTasks.forEach((task, index) => {
+                db.runSync("UPDATE tasks SET sortOrder = ? WHERE id = ? AND list_id = ?", [index, task.id, currentListId]);
+              });
+              
+              // Actualizar el estado
+              setTasks(updatedTasks);
+            } else {
+              showLog("Error deleting task");
+            }
+          },
+        },
+      ]
+    );
+  }
 
   function handleEditTask(item) {
     setTaskText(item.text);
@@ -133,48 +182,57 @@ export default function HomeScreen() {
       showLog("Select a list");
       return;
     }
-    const actualList = activeListUser != undefined ? activeListUser : activeList;
-    const taskId = Number(isEditing); // Asegurarnos de que isEditing es un número
-    if (isNaN(taskId)) {
-      showLog("Invalid task ID");
-      return; // Si isEditing no es un número válido, no continuar
-    }
-  
+    const actualList = activeListUser !== undefined ? activeListUser : activeList;
+    
     if (isEditing) {
-      // Actualizar la tarea en la base de datos para la lista activa
+      const taskId = Number(isEditing);
+      if (isNaN(taskId)) {
+        showLog("Invalid task ID");
+        return;
+      }
+      
       const result = db.runSync("update tasks set text = ? where id = ? and list_id = ?", [
         taskText,
-        taskId.toString(),
-        actualList, // Asociamos la tarea con la lista activa
+        taskId,
+        actualList,
       ]);
-  
+
       if (result.changes > 0) {
-        // Actualizar el estado de las tareas en la UI
         setTasks((prevTasks) =>
           prevTasks.map((task) =>
             task.id === taskId ? { ...task, text: taskText } : task
           )
         );
-        setIdEditing(null); // Limpiar el campo de edición
+        setIdEditing(null);
       } else {
         showLog("Error editing task");
       }
-  
       Keyboard.dismiss();
     } else {
-      // Agregar nueva tarea a la lista activa
-      const result = db.runSync("insert into tasks (text, list_id) values (?, ?);", [
+      // Obtener el máximo sortOrder para la lista actual
+      const maxSortOrderResult = db.getAllSync("SELECT MAX(sortOrder) as maxOrder FROM tasks WHERE list_id = ?", [actualList]);
+      const nextSortOrder = (maxSortOrderResult[0]?.maxOrder || -1) + 1;
+      
+      const result = db.runSync("insert into tasks (text, list_id, sortOrder) values (?, ?, ?);", [
         taskText,
-        actualList, // Asociamos la tarea con la lista activa
+        actualList,
+        nextSortOrder
       ]);
-      const newTask = { id: result.lastInsertRowId.toString(), text: taskText };
+      
+      const newTask = { 
+        id: result.lastInsertRowId, 
+        text: taskText, 
+        list_id: actualList,
+        sortOrder: nextSortOrder,
+        isCrossed: false
+      };
       setTasks([...tasks, newTask]);
       Keyboard.dismiss();
     }
-    setTaskText(""); // Limpiar el campo de entrada de texto
+    setTaskText("");
   }
-    function handleDoneTask(id, isCrossed) {
-/*       const crossed = !isCrossed;
+  function handleDoneTask(id, isCrossed) {
+      const crossed = !isCrossed;
       const result = db.runSync("update tasks set isCrossed = ? where id = ?", [
         crossed,
         id,
@@ -189,18 +247,24 @@ export default function HomeScreen() {
         );
       } else {
         showLog("Error crossing task");
-      } */
+      }
   }
-  const renderTask = ({ item }) => {
-    return (
-      <TaskItem
-        item={item}
-        handleEdit={handleEditTask}
-        handleDelete={handleDeleteTask}
-        handleDoneTask={handleDoneTask}
-      />
-    );
-  };
+const renderTask = ({ item, drag, isActive }) => {
+  return (
+    <ScaleDecorator>
+      <OpacityDecorator>
+        <TaskItem
+          item={item}
+          handleEdit={handleEditTask}
+          handleDelete={handleDeleteTask}
+          handleDoneTask={handleDoneTask}
+          drag={drag}           // Pasar la función drag
+          isActive={isActive}   // Pasar el estado isActive
+        />
+      </OpacityDecorator>
+    </ScaleDecorator>
+  );
+};
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -234,8 +298,9 @@ export default function HomeScreen() {
               <Icon name="done" color="red"></Icon>
             </TouchableOpacity>
           </View>
-          <FlatList
+          <DraggableFlatList
             data={tasks}
+            onDragEnd={handleDragEnd}
             renderItem={renderTask}
             keyExtractor={(item) => item.id.toString()}
             style={styles.flatList}
@@ -251,7 +316,7 @@ const styles = StyleSheet.create({
     flex: 1,
     //padding: 40,
     marginTop: 35,
-    justifyContent: "center",
+    //justifyContent: "center",
   },
   addButtonContainer: {
     backgroundColor: "green",
@@ -313,7 +378,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     padding: 20,
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   menuContainer: {
     backgroundColor: 'white',

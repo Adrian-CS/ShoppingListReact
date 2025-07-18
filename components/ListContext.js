@@ -45,6 +45,35 @@ export const ListProvider = ({ children }) => {
       );
     `);    
     db.execSync("CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT, list_id INTEGER, FOREIGN KEY (list_id) REFERENCES lists(id));");
+    // Agregar la columna si no existe
+    const res = db.getAllSync(`PRAGMA table_info(tasks);`);
+    const columnExists = res.some(col => col.name === 'isCrossed');
+    if (!columnExists) {
+      db.execSync("ALTER TABLE tasks ADD COLUMN isCrossed BOOLEAN DEFAULT false;");
+    }
+    const sortOrderExists = res.some(col => col.name === 'sortOrder');
+    
+    if (!sortOrderExists) {
+      db.execSync("ALTER TABLE tasks ADD COLUMN sortOrder INTEGER DEFAULT 0;");
+      
+      // Asignar orden inicial a tareas existentes, agrupadas por lista
+      const allLists = db.getAllSync("SELECT DISTINCT list_id FROM tasks WHERE list_id IS NOT NULL");
+      
+      allLists.forEach(listRow => {
+        // Obtener todas las tareas de esta lista específica
+        const tasksInList = db.getAllSync("SELECT * FROM tasks WHERE list_id = ? ORDER BY id ASC", [listRow.list_id]);
+        
+        // Asignar sortOrder comenzando desde 0 para cada lista
+        tasksInList.forEach((task, index) => {
+          db.runSync("UPDATE tasks SET sortOrder = ? WHERE id = ?", [index, task.id]);
+        });
+      });
+    }
+/*           // Manejar tareas que no tienen list_id (si las hay)
+      const tasksWithoutList = db.getAllSync("SELECT * FROM tasks WHERE list_id IS NULL ORDER BY id ASC");
+      tasksWithoutList.forEach((task, index) => {
+        db.runSync("UPDATE tasks SET sortOrder = ? WHERE id = ?", [index, task.id]);
+    }); */
 
     const result = db.getAllSync("SELECT * FROM lists");
     //setLists(result); // Guardar las listas en el estado
