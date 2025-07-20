@@ -64,32 +64,58 @@ export default function HomeScreen1() {
 
   //Data base stuff
   const db = SQLite.openDatabaseSync("tasks.db"); // Abre (o crea) la base de datos
+    const initializeDatabase = async () => {
+    try {
+      // Crear tabla con todas las columnas si no existe
+      db.execSync(`
+        CREATE TABLE IF NOT EXISTS tasks (
+          id INTEGER PRIMARY KEY NOT NULL,
+          text TEXT,
+          isCrossed BOOLEAN DEFAULT false,
+          sortOrder INTEGER DEFAULT 0
+        );
+      `);
+      // OPTIMIZACIÓN 2: Verificar columnas en una sola consulta
+      const tableInfo = db.getAllSync(`PRAGMA table_info(tasks);`);
+      const existingColumns = tableInfo.map(col => col.name);
+      
+      // OPTIMIZACIÓN 3: Agregar columnas en una sola transacción
+      db.execSync('BEGIN TRANSACTION;');
+      
+      if (!existingColumns.includes('isCrossed')) {
+        db.execSync("ALTER TABLE tasks ADD COLUMN isCrossed BOOLEAN DEFAULT false;");
+      }
+      
+      if (!existingColumns.includes('sortOrder')) {
+        db.execSync("ALTER TABLE tasks ADD COLUMN sortOrder INTEGER DEFAULT 0;");
+        
+        // OPTIMIZACIÓN 4: Actualizar sortOrder en una sola consulta con ROW_NUMBER
+        db.execSync(`
+          UPDATE tasks 
+          SET sortOrder = (
+            SELECT COUNT(*) 
+            FROM tasks t2 
+            WHERE t2.id <= tasks.id
+          ) - 1
+          WHERE sortOrder IS NULL OR sortOrder = 0;
+        `);
+      }
+      
+      db.execSync('COMMIT;');
+      
+      // OPTIMIZACIÓN 5: Cargar tareas después de la inicialización
+      const result = db.getAllSync("SELECT * FROM tasks ORDER BY sortOrder ASC");
+      setTasks(result);
+      
+    } catch (error) {
+      db.execSync('ROLLBACK;');
+      showLog(`Database error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   useEffect(() => {
-    //db.execSync('delete from tasks');
-    db.execSync(
-      "create table if not exists tasks (id integer primary key not null, text text);"
-    );
-    const res = db.getAllSync(`PRAGMA table_info(tasks);`);
-    const columnExists = res.some(col => col.name === 'isCrossed');
-
-    // Agregar la columna si no existe
-    if (!columnExists) {
-      db.execSync("ALTER TABLE tasks ADD COLUMN isCrossed BOOLEAN DEFAULT false;");
-    }
-    const sortOrderExists = res.some(col => col.name === 'sortOrder');
-    
-    if (!sortOrderExists) {
-      db.execSync("ALTER TABLE tasks ADD COLUMN sortOrder INTEGER DEFAULT 0;");
-      // Asignar orden inicial a tareas existentes
-      const existingTasks = db.getAllSync("select * from tasks");
-      existingTasks.forEach((task, index) => {
-        db.runSync("UPDATE tasks SET sortOrder = ? WHERE id = ?", [index, task.id]);
-      });
-    }
-    const result = db.getAllSync("select * from tasks order by sortOrder asc");
-    setTasks(result);
-    setIsLoading(false);
-    //showTasksInAlert();
+    initializeDatabase();
   }, []);
   function handleCrossUncrossAll(cross) {
       const result = db.runSync("update tasks set isCrossed = ? ", [
@@ -271,14 +297,14 @@ const renderTask = ({ item, drag, isActive }) => {
           </View>
           <View style={styles.crossButtonRow}>
             <TouchableOpacity
-              style={[styles.crossButton, { backgroundColor: "#e67e22" }]}
+              style={[styles.crossButton, { backgroundColor: "#27ae60" }]}
               onPress={() => handleCrossUncrossAll(true)}
             >
               <Text style={styles.buttonsText}>✓ 全部済み</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.crossButton, { backgroundColor: "#27ae60" }]}
+              style={[styles.crossButton, { backgroundColor: "#e67e22" }]}
               onPress={() => handleCrossUncrossAll(false)}
             >
               <Text style={styles.buttonsText}>○ リセット</Text>
