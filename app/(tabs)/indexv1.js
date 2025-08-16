@@ -304,7 +304,7 @@ const renderTask = ({ item, drag, isActive }) => {
               <Icon name="done" color="red"></Icon>
             </TouchableOpacity>   
             <TouchableOpacity style={styles.duplicatesButton}>
-              <CheckBox checked={duplicatesCheck} containerStyle={styles.duplicatesButton} title='重複チェック' onPress={() => setDuplicatesCheck(!duplicatesCheck)}
+              <CheckBox checked={duplicatesCheck} containerStyle={styles.duplicatesButton} title={<Text style={styles.buttonsText}>重複チェック  </Text>} onPress={() => setDuplicatesCheck(!duplicatesCheck)}
                 iconRight= "true" checkedColor="green" textStyle={styles.buttonsText}
                 />
             </TouchableOpacity>     
