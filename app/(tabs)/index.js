@@ -274,7 +274,7 @@ const renderTask = ({ item, drag, isActive }) => {
         style={styles.backgroundImage}
       >
       <View style={styles.overlay}>
-        <ThemedText style={styles.titlegeneral}>買い物リスト</ThemedText>
+        <ThemedText style={styles.titlegeneral}>リスト</ThemedText>
           <SelectList 
               setSelected={(val) => setActiveListUser(val)} 
               data={data} 
