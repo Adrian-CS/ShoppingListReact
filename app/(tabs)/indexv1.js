@@ -29,6 +29,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import TaskItem from "../../components/TaskItem";
 import * as SQLite from "expo-sqlite";
+import { CheckBox } from 'react-native-elements'
 //import { Text, View } from 'react-native-reanimated/lib/typescript/Animated';
 const image = {
   uri: "https://i.pinimg.com/736x/5d/f1/35/5df1359a55fa8ec26509c0dfb10082e4.jpg",
@@ -50,6 +51,7 @@ export default function HomeScreen1() {
   const [byCross, setByCross] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [logs, setLogs] = useState([]);
+  const [duplicatesCheck, setDuplicatesCheck] = useState(true);
 
   let inputRef = useRef(null);
 
@@ -191,6 +193,13 @@ export default function HomeScreen1() {
       showLog("Invalid task ID");
       return; // Si isEditing no es un número válido, no continuar
     }
+    if(duplicatesCheck) {
+      const matchingTasks = db.getAllSync("select * from tasks where text like ?", [taskText]);
+      if(matchingTasks.length > 0) {
+        showLog("Task already exist");
+        return;
+      }
+    }
 
     if (isEditing) {
       // Verificar si la tarea realmente existe antes de hacer la actualización
@@ -291,9 +300,14 @@ const renderTask = ({ item, drag, isActive }) => {
           ></TextInput>
           <View style={styles.addButtonContainer}>
             <TouchableOpacity style={styles.addButton} onPress={handleSaveTask}>
-              <Text style={styles.addText}>{isEditing ? "Edit" : "入力"}</Text>
+              <Text style={styles.addText}>{isEditing ? "編集" : "入力"}</Text>
               <Icon name="done" color="red"></Icon>
-            </TouchableOpacity>
+            </TouchableOpacity>   
+            <TouchableOpacity style={styles.duplicatesButton}>
+              <CheckBox checked={duplicatesCheck} containerStyle={styles.duplicatesButton} title='重複チェック' onPress={() => setDuplicatesCheck(!duplicatesCheck)}
+                iconRight= "true" checkedColor="green" textStyle={styles.buttonsText}
+                />
+            </TouchableOpacity>     
           </View>
           <View style={styles.crossButtonRow}>
             <TouchableOpacity
@@ -337,16 +351,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   addButtonContainer: {
-    backgroundColor: "green",
-    width: "30%",
     flexDirection: "row",
-    justifyContent: "center",
-    borderRadius: 20,
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 0,
   },
   crossButtonRow: {
     flexDirection: "row",
     justifyContent: "space-around",
-    marginTop: 10,
+    marginTop: 5,
   },
 
   crossButton: {
@@ -381,12 +394,25 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   addButton: {
-    //backgroundColor: 'purple',
-    width: 80,
-    marginTop: 10,
-    marginBottom: 10,
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "green",
+    paddingVertical: 10,
+    marginRight: 0,        // espacio con el otro botón
+    borderRadius: 20,
+  },
+  duplicatesButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+    paddingVertical: 10,
+    marginLeft: 0,
+    borderRadius: 20,
+    borderColor: 'transparent'
   },
   task: {
     //flexDirection: "row",
